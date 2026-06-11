@@ -1,1 +1,1 @@
-libzlib-dev
+zlib1g-dev
