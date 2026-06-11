@@ -26,6 +26,14 @@ if 'connected_users' not in st.session_state:
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 
+# If the app is opened with a room_id in the URL, use it
+if 'room_id' in st.query_params:
+    url_room_id = str(st.query_params['room_id'])
+    if url_room_id and url_room_id != st.session_state.room_id:
+        st.session_state.room_id = url_room_id
+        st.session_state.connected_users = []
+        st.session_state.messages = []
+
 # App title
 st.markdown("**Signaling server listening on port 3000**")
 st.title("🎥 Zoom Clone - WebRTC Video Conference")
@@ -43,16 +51,37 @@ with st.sidebar:
     
     st.write(f"**Your ID:** `{st.session_state.user_id}`")
     
+    st.text_input(
+        "Enter Room ID to join",
+        key="room_input",
+        placeholder="e.g. 4bff0139"
+    )
+
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🔄 New Room", use_container_width=True):
             st.session_state.room_id = str(uuid.uuid4())[:8]
             st.session_state.connected_users = []
+            st.session_state.messages = []
+            st.query_params['room_id'] = st.session_state.room_id
             st.rerun()
     
     with col2:
         if st.button("🔗 Join Room", use_container_width=True):
-            st.info("Share Room ID with others to connect")
+            entered_room = st.session_state.room_input.strip()
+            if entered_room:
+                st.session_state.room_id = entered_room
+                st.session_state.connected_users = []
+                st.session_state.messages = []
+                st.query_params['room_id'] = entered_room
+                st.rerun()
+            else:
+                st.info("Type a room ID first")
+    
+    # Shareable link for the current room
+    share_link = f"https://server-port-ffssgapvgxygod4xg7kyjs.streamlit.app/?room_id={st.session_state.room_id}"
+    st.caption("Share this link:")
+    st.code(share_link)
     
     st.divider()
     
