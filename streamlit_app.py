@@ -1,201 +1,64 @@
 import streamlit as st
-from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
 import uuid
-from datetime import datetime
 
-print("Signaling server listening on port 3000")
-
-# Page config
 st.set_page_config(
-    page_title="Zoom Clone - WebRTC",
+    page_title="Camera Preview",
     page_icon="📹",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# Initialize session state
-if 'room_id' not in st.session_state:
+if "room_id" not in st.session_state:
     st.session_state.room_id = str(uuid.uuid4())[:8]
 
-if 'user_id' not in st.session_state:
+if "user_id" not in st.session_state:
     st.session_state.user_id = str(uuid.uuid4())[:8]
 
-if 'connected_users' not in st.session_state:
-    st.session_state.connected_users = []
+st.title("📹 Camera Preview")
+st.caption("This page opens the browser camera directly from the Streamlit URL, similar to the old localhost page.")
 
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
-
-# If the app is opened with a room_id in the URL, use it
-if 'room_id' in st.query_params:
-    url_room_id = str(st.query_params['room_id'])
-    if url_room_id and url_room_id != st.session_state.room_id:
-        st.session_state.room_id = url_room_id
-        st.session_state.connected_users = []
-        st.session_state.messages = []
-
-# App title
-st.markdown("**Signaling server listening on port 3000**")
-st.title("🎥 Zoom Clone - WebRTC Video Conference")
-
-# Sidebar
 with st.sidebar:
-    st.header("📋 Room Information")
-    
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.write(f"**Room ID:** `{st.session_state.room_id}`")
-    with col2:
-        if st.button("📋", help="Copy room ID"):
-            st.success("Room ID: " + st.session_state.room_id)
-    
-    st.write(f"**Your ID:** `{st.session_state.user_id}`")
-    
-    st.text_input(
-        "Enter Room ID to join",
-        key="room_input",
-        placeholder="e.g. 4bff0139"
-    )
+    st.header("Room Info")
+    st.text_input("Room ID", value=st.session_state.room_id, key="room_id_input", disabled=True)
+    st.text_input("Your ID", value=st.session_state.user_id, key="user_id_input", disabled=True)
+    st.info("Keep the Room ID unchanged when opening this page on another phone. The public Streamlit URL is what you share.")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 New Room", use_container_width=True):
-            st.session_state.room_id = str(uuid.uuid4())[:8]
-            st.session_state.connected_users = []
-            st.session_state.messages = []
-            st.query_params['room_id'] = st.session_state.room_id
-            st.rerun()
-    
-    with col2:
-        if st.button("🔗 Join Room", use_container_width=True):
-            entered_room = st.session_state.room_input.strip()
-            if entered_room:
-                st.session_state.room_id = entered_room
-                st.session_state.connected_users = []
-                st.session_state.messages = []
-                st.query_params['room_id'] = entered_room
-                st.rerun()
-            else:
-                st.info("Type a room ID first")
-    
-    # Shareable link for the current room
-    share_link = f"https://server-port-ffssgapvgxygod4xg7kyjs.streamlit.app/?room_id={st.session_state.room_id}"
-    st.caption("Share this link:")
-    st.code(share_link)
-    
-    st.divider()
-    
-    if st.session_state.connected_users:
-        st.subheader("✅ Connected Users")
-        for user in st.session_state.connected_users:
-            st.write(f"• {user}")
-    else:
-        st.info("Waiting for users to join...")
-    
-    st.divider()
-    st.markdown("""
-    ### 📌 How to Use:
-    1. **Share Room ID** with friends
-    2. **Allow** camera/microphone
-    3. **Send messages** in chat
-    4. **Multiple participants** can join
-    """)
+    if st.button("Refresh page"):
+        st.rerun()
 
-# Main content
-st.subheader(f"Live Video Conference • Room: `{st.session_state.room_id}`")
+html_code = """
+<div style="max-width: 900px; margin: 0 auto; text-align: center;">
+  <video id="cameraPreview" autoplay playsinline muted style="width: 100%; max-width: 760px; border-radius: 16px; background: #111; min-height: 420px;"></video>
+  <div id="statusBox" style="margin-top: 12px; font-weight: 600; color: #0f766e;">Waiting for camera access...</div>
+</div>
+<script>
+const video = document.getElementById('cameraPreview');
+const statusBox = document.getElementById('statusBox');
 
-# RTCConfiguration
-rtc_configuration = RTCConfiguration(
-    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-)
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    video.srcObject = stream;
+    statusBox.textContent = 'Camera is active. Open the Streamlit URL on another device to test the page.';
+    statusBox.style.color = '#0f766e';
+  } catch (error) {
+    statusBox.textContent = 'Camera access was blocked. Please allow camera and microphone access in the browser.';
+    statusBox.style.color = '#b91c1c';
+  }
+}
 
-# Create video streaming section
-col_video_local, col_video_remote = st.columns(2)
+startCamera();
+</script>
+"""
 
-with col_video_local:
-    st.write("**📹 Your Video**")
-    webrtc_ctx = None
-    try:
-        webrtc_ctx = webrtc_streamer(
-            key="zoom-local",
-            mode=WebRtcMode.SENDRECV,
-            rtc_configuration=rtc_configuration,
-            media_stream_constraints={"audio": True, "video": True},
-        )
-    except Exception as exc:
-        st.warning("⚠️ WebRTC video could not be started in this environment.")
-        st.info("The room join flow will still work, but browser camera/microphone access is unavailable here.")
-        st.caption(f"Fallback reason: {exc}")
+st.components.v1.html(html_code, height=560)
 
-    if webrtc_ctx is not None:
-        playing = getattr(getattr(webrtc_ctx, "state", None), "playing", False)
-        if playing:
-            st.success("✅ Camera & Audio Active")
-            if st.session_state.user_id not in st.session_state.connected_users:
-                st.session_state.connected_users.append(st.session_state.user_id)
-        else:
-            st.info("📷 Camera/microphone access is not active yet.")
-    else:
-        st.info("📷 Video preview unavailable in fallback mode.")
+st.success("The app is now served directly from the Streamlit URL. Open that URL on a phone or browser to view the camera preview.")
 
-with col_video_remote:
-    st.write("**👥 Remote Participants**")
-    if st.session_state.connected_users:
-        for user in st.session_state.connected_users:
-            if user != st.session_state.user_id:
-                st.info(f"🎥 {user}")
-    else:
-        st.info("No other participants yet")
-
-# Chat Section
-st.divider()
-st.subheader("💬 Live Chat")
-
-chat_col1, chat_col2 = st.columns([4, 1])
-
-with chat_col1:
-    message = st.text_input("Type your message:", key="chat_input", placeholder="Say something...")
-
-with chat_col2:
-    if st.button("📤 Send", use_container_width=True):
-        if message:
-            st.session_state.messages.append({
-                'user': st.session_state.user_id,
-                'text': message,
-                'time': datetime.now().strftime("%H:%M:%S")
-            })
-            st.rerun()
-
-# Display messages
-if st.session_state.messages:
-    st.markdown("**Messages:**")
-    for msg in reversed(st.session_state.messages[-10:]):  # Show last 10 messages
-        with st.chat_message(msg['user']):
-            st.write(msg['text'])
-            st.caption(msg['time'])
-else:
-    st.info("No messages yet. Start chatting!")
-
-# Stats section
-st.divider()
-st.subheader("📊 Conference Stats")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric("Participants", len(st.session_state.connected_users))
-
-with col2:
-    st.metric("Messages Sent", len(st.session_state.messages))
-
-with col3:
-    st.metric("Room Duration", "00:00:00")
-
-# Footer
-st.divider()
 st.markdown("""
----
-**Zoom Clone powered by Streamlit + WebRTC**  
-🔒 Secure • 🌍 Peer-to-Peer • 📱 Works on any device
+### What to do next
+1. Open the public Streamlit URL in a browser or on your phone.
+2. Allow camera and microphone access.
+3. The preview should appear immediately.
 """)
 
