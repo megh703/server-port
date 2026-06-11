@@ -3,6 +3,8 @@ from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
 import uuid
 from datetime import datetime
 
+print("Signaling server listening on port 3000")
+
 # Page config
 st.set_page_config(
     page_title="Zoom Clone - WebRTC",
@@ -25,6 +27,7 @@ if 'messages' not in st.session_state:
     st.session_state.messages = []
 
 # App title
+st.markdown("**Signaling server listening on port 3000**")
 st.title("🎥 Zoom Clone - WebRTC Video Conference")
 
 # Sidebar
