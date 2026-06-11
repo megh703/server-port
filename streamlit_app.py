@@ -114,20 +114,29 @@ col_video_local, col_video_remote = st.columns(2)
 
 with col_video_local:
     st.write("**📹 Your Video**")
-    webrtc_ctx = webrtc_streamer(
-        key="zoom-local",
-        mode=WebRtcMode.SENDRECV,
-        rtc_configuration=rtc_configuration,
-        media_stream_constraints={"audio": True, "video": True},
-        async_processing=True,
-    )
-    
-    if webrtc_ctx.state.playing:
-        st.success("✅ Camera & Audio Active")
-        if st.session_state.user_id not in st.session_state.connected_users:
-            st.session_state.connected_users.append(st.session_state.user_id)
+    webrtc_ctx = None
+    try:
+        webrtc_ctx = webrtc_streamer(
+            key="zoom-local",
+            mode=WebRtcMode.SENDRECV,
+            rtc_configuration=rtc_configuration,
+            media_stream_constraints={"audio": True, "video": True},
+        )
+    except Exception as exc:
+        st.warning("⚠️ WebRTC video could not be started in this environment.")
+        st.info("The room join flow will still work, but browser camera/microphone access is unavailable here.")
+        st.caption(f"Fallback reason: {exc}")
+
+    if webrtc_ctx is not None:
+        playing = getattr(getattr(webrtc_ctx, "state", None), "playing", False)
+        if playing:
+            st.success("✅ Camera & Audio Active")
+            if st.session_state.user_id not in st.session_state.connected_users:
+                st.session_state.connected_users.append(st.session_state.user_id)
+        else:
+            st.info("📷 Camera/microphone access is not active yet.")
     else:
-        st.warning("⏸️ Please allow camera/microphone access")
+        st.info("📷 Video preview unavailable in fallback mode.")
 
 with col_video_remote:
     st.write("**👥 Remote Participants**")
