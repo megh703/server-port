@@ -1,9 +1,13 @@
 {
   "name": "zoom-clone",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "WebRTC Zoom Clone with Socket.io signaling server",
+  "main": "server.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
+    "start": "node server.js",
     "devStart": "nodemon server.js"
   },
   "keywords": [],
